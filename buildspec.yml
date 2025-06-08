@@ -9,7 +9,7 @@ phases:
       # Đăng nhập vào Amazon ECR bằng cách lấy token đăng nhập rồi truyền vào docker login
       - aws ecr get-login-password --region ap-southeast-1 | docker login \
         --username AWS --password-stdin \
-        295586985151.dkr.ecr.ap-southeast-1.amazonaws.com/simple-app
+        295586988587.dkr.ecr.ap-southeast-1.amazonaws.com/simple-app
 
       # Gán URI của repository ECR vào biến REPOSITORY_URI
       - REPOSITORY_URI=295586988587.dkr.ecr.ap-southeast-1.amazonaws.com/simple-app
