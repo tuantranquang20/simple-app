@@ -1,32 +1,52 @@
-version: 0.2
+version: 0.2 # Sử dụng phiên bản 0.2 của AWS CodeBuild YAML syntax
 
 phases:
   pre_build:
     commands:
       - echo Connecting to Amazon ECR...
-      - aws --version
-      # - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
-      - aws ecr get-login-password --region ap-southeast-1 | docker login
-        --username AWS --password-stdin
-        916495840179.dkr.ecr.ap-southeast-1.amazonaws.com
-      - REPOSITORY_URI=916495840179.dkr.ecr.ap-southeast-1.amazonaws.com/demo
+      - aws --version # Kiểm tra phiên bản AWS CLI
+
+      # Đăng nhập vào Amazon ECR bằng cách lấy token đăng nhập rồi truyền vào docker login
+      - aws ecr get-login-password --region ap-southeast-1 | docker login \
+        --username AWS --password-stdin \
+        295586985151.dkr.ecr.ap-southeast-1.amazonaws.com/simple-app
+
+      # Gán URI của repository ECR vào biến REPOSITORY_URI
+      - REPOSITORY_URI=295586988587.dkr.ecr.ap-southeast-1.amazonaws.com/simple-app
+
+      # Lấy 7 ký tự đầu tiên của mã commit hiện tại (có thể dùng để tag image)
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+
+      # Tạo tag cho image theo định dạng build-[build_id]
       - IMAGE_TAG=build-$(echo $CODEBUILD_BUILD_ID | awk -F":" '{print $2}')
+
   build:
     commands:
       - echo Build started on `date`
+
+      # Build Docker image từ Dockerfile trong thư mục hiện tại
       - echo Building the Docker image...
       - docker build --platform linux/amd64 -t $REPOSITORY_URI:latest .
+
+      # Gắn thêm tag dạng build-[build_id] cho image
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+
   post_build:
     commands:
       - echo Build completed on `date`
+
+      # Push cả 2 phiên bản image (latest và tag riêng) lên Amazon ECR
       - echo Pushing the Docker images...
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
+
+      # Tạo file định nghĩa image để ECS dùng khi deploy
       - echo Writing image definitions file...
-      - printf '[{"name":"simple-app","imageUri":"%s"}]'
+      - printf '[{"name":"simple-app","imageUri":"%s"}]' \
         $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+
+      # In nội dung file ra log để kiểm tra
       - cat imagedefinitions.json
+
 artifacts:
-  files: imagedefinitions.json
+  files: imagedefinitions.json # File output sẽ được export ra cho các bước tiếp theo (như ECS deploy)
